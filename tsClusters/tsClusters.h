@@ -9,6 +9,7 @@
 #ifndef _TS_CLUSTERS_H
 #define _TS_CLUSTERS_H
 
+#include <thread>
 #include <mutex>
 #include <vector>
 #include <memory>
@@ -36,7 +37,7 @@ TODO List:
 	-Add logging support
 	-Add cluster assignment
 	-Add centroid computation
-	-Add logical processor counting
+	-Add logical processor counting [ DONE ] 
 	-Add multi-threading and experiment with workload distribution 
 			(probably divide the entire dataset by thread along stride boundaries?)
 	-Add distance computation (test for instruction support, use intrinsics)
@@ -71,6 +72,8 @@ private:
 	********************/
 	std::mutex tsLock;
 	std::fstream log;
+
+	unsigned int cpu_count = 0;
 };
 
 /*
@@ -83,6 +86,7 @@ template <typename T> tsClusters<T>::tsClusters()
 	data = std::make_shared<std::vector<T>>(*(new std::vector<T>));
 	stride = 0;
 	number_of_clusters = 0;
+	cpu_count = std::thread::hardware_concurrency(); // Logical processor count
 
 #ifdef _DEBUG
 	log.open("debug.log", std::fstream::out);
@@ -126,7 +130,7 @@ template <typename T> tsClusters<T>& tsClusters<T>::operator=(const tsClusters<T
 Fill the data array with an array of variable type T of a given size, where stride is
 the dimension of the array.
 Obviously size%stride should be 0.
-TODO: Exception handling
+Returns the size of the internal data vector
 */
 template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data, unsigned int input_size, unsigned int input_stride)
 {
@@ -135,8 +139,18 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 
 	std::lock_guard<std::mutex> lock(tsLock);
 
-	for(unsigned int i=0; i<input_size; i++)
-		data->push_back(input_data[i]);
+	try
+	{
+		for (unsigned int i = 0; i<input_size; i++)
+			data->push_back(input_data[i]);
+	}
+	catch (std::exception e)
+	{
+#ifdef _DEBUG
+		log << "Exception in fill_data_array: " << e.what() << std::endl;
+#endif
+		return 0;
+	}
 	
 	number_of_clusters = input_stride;
 
