@@ -102,6 +102,7 @@ template <typename T> tsClusters<T>::tsClusters()
 template <typename T> tsClusters<T>::~tsClusters()
 {
 #ifdef _DEBUG
+	log << std::endl;
 	log << "tsClusters cleaning up and closing out the log file.";
 	log.close();
 #endif	
@@ -206,6 +207,7 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 
 	unsigned int counter = 0;
 
+	// TODO: Fix this bug in the iterator
 	for (auto& it : data)
 	{
 		unsigned int index = counter % stride;

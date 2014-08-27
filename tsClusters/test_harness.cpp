@@ -40,6 +40,7 @@ int main(int argc, char* argv[])
 	}
 
 	clusters.fill_data_array(data_array, TS_DIMENSIONS * TS_DATAPOINTS, TS_DIMENSIONS);
+	clusters.initialize_clusters();
 
 	return 0;
 }
