@@ -58,7 +58,7 @@ public:
 	// TODO: What about a move operator?
 	unsigned int fill_data_array(T* input, unsigned int size,  unsigned int stride);
 	void set_number_of_clusters(unsigned int num_clusters);
-	void tsClusters<T>::initialize_clusters()
+	void tsClusters<T>::initialize_clusters();
 private:
 	/* We need a shared_ptr here so we can traverse the data across
 	multiple threads */
@@ -233,6 +233,26 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 			clusters->push_back((T)((rand() % (ub[idx_s] - lb[idx_s]) + lb[idx_s])));
 		}
 	}
+
+#ifdef _DEBUG
+	log << "Cluster starting positions:" << std::endl;
+
+	unsigned int it_c_cnt = 0;
+	log << "Cluster " << it_c_cnt << ":" << std::endl;
+
+	for (auto& it_c : clusters)
+	{
+		log << it_c << ", ";
+
+		it_c_cnt++;
+
+		if (!(it_c_cnt % stride) && it_c_cnt < stride)
+		{
+			log << std::endl;
+			log << "Cluster " << it_c_cnt << ":" << std::endl;
+		}
+	}
+#endif
 
 	// TODO: Compute minimum safe distance...
 }
