@@ -30,11 +30,11 @@ by the stride provided in order to run the cluster analysis.
 
 /*******************
 TODO List: 
+	-Add logging support [ IN PROGRESS ]
 	-Migrate to a better logger (need timestamps and such)
 	-Test data filling functions, bounds check, error handling
-	-Add cluster centers data (and starting positions?)
-	-Add cluster starting position assignments (minimum safe distance checks, etc.)
-	-Add logging support
+	-Add cluster centers data [ DONE ]
+	-Add cluster starting position assignments [ IN PROGRESS ]
 	-Add cluster assignment
 	-Add centroid computation
 	-Add logical processor counting [ DONE ] 
@@ -58,10 +58,15 @@ public:
 	// TODO: What about a move operator?
 	unsigned int fill_data_array(T* input, unsigned int size,  unsigned int stride);
 	void set_number_of_clusters(unsigned int num_clusters);
+	void tsClusters<T>::initialize_clusters()
 private:
 	/* We need a shared_ptr here so we can traverse the data across
 	multiple threads */
 	std::shared_ptr<std::vector<T>> data;
+	/* Like the data vector, the clusters have a stride to them, to 
+	retain the flatness of the vector layout */
+	std::shared_ptr<std::vector<T>> clusters;
+
 	/* Stride is number of number of dimensions to the data */
 	unsigned int stride;
 	unsigned int number_of_clusters;
@@ -181,6 +186,55 @@ template <typename T> void tsClusters<T>::set_number_of_clusters(unsigned int in
 
 	if(input_number)
 		number_of_clusters = input_number;
+}
+
+/*
+Initalize the clusters to a new starting position, based on the min and max
+of each dimension (of which there are N dimensions, where N is the stride)
+TODO: Test this
+*/
+template <typename T> void tsClusters<T>::initialize_clusters()
+{
+	std::lock_guard<std::mutex> lock(tsLock);
+
+	// Find the upper and lower bound of each dimension in the data vector
+	T* ub = new T[stride];
+	T* lb = new T[stride];
+
+	memset(ub, 0, sizeof(T)*stride);
+	memset(lb, 0, sizeof(T)*stride);
+
+	unsigned int counter = 0;
+
+	for (auto& it : data)
+	{
+		unsigned int index = counter % stride;
+
+		if (it > ub[index])
+			ub[index] = it;
+
+		if (it < lb[index])
+			lb[index] = it;
+
+		counter++;
+	}
+
+	// We should now have a lower and upper bound for every dimension in
+	// the data, based on traversing all the data
+
+	// For every cluster...
+	for (unsigned int idx_c = 0; idx_c < number_of_clusters; idx_c++)
+	{
+		// ... and every dimension of every cluster...
+		for (unsigned int idx_s = 0; idx_s < stride; idx_s++)
+		{
+			// ...put a random value into the clusters vector that is between the
+			// lower bound and upper bound of this particular dimension
+			clusters->push_back((T)((rand() % (ub[idx_s] - lb[idx_s]) + lb[idx_s])));
+		}
+	}
+
+	// TODO: Compute minimum safe distance...
 }
 
 #endif // _TS_CLUSTERS_H
