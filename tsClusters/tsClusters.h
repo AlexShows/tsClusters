@@ -205,21 +205,34 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	memset(ub, 0, sizeof(T)*stride);
 	memset(lb, 0, sizeof(T)*stride);
 
+	std::vector<T>::iterator it = clusters->begin();
+
 	unsigned int counter = 0;
-
-	// TODO: Fix this bug in the iterator
-	for (auto& it : data)
+	while (it != clusters->end())
 	{
-		unsigned int index = counter % stride;
+		unsigned int i = counter % stride;
 
-		if (it > ub[index])
-			ub[index] = it;
+		if (*it > ub[i])
+			ub[i] = *it;
 
-		if (it < lb[index])
-			lb[index] = it;
+		if (*it < lb[i])
+			lb[i] = *it;
 
 		counter++;
 	}
+
+	/*
+	for (unsigned int i = 0; i < clusters->size(); i++)
+	{
+		unsigned int index = i % stride;
+
+		if (clusters[i] > ub[index])
+			ub[index] = clusters[i];
+
+		if (clusters[i] < lb[index])
+			lb[index] = clusters[i];
+	}
+	*/
 
 	// We should now have a lower and upper bound for every dimension in
 	// the data, based on traversing all the data
@@ -242,7 +255,8 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	unsigned int it_c_cnt = 0;
 	log << "Cluster " << it_c_cnt << ":" << std::endl;
 
-	for (auto& it_c : clusters)
+	std::vector<T>vc = clusters->get();
+	for (auto& it_c : vc)
 	{
 		log << it_c << ", ";
 
