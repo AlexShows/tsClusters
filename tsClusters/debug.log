@@ -1,4 +1,6 @@
 Initialized tsClusters debug log.
+
+Data points: 
 37	70	132	145	13	
 41	145	149	168	18	
 54	80	112	115	14	
@@ -998,7 +1000,18 @@ Initialized tsClusters debug log.
 45	74	131	60	18	
 37	60	123	169	14	
 34	115	125	62	10	
-49	134	102	127	18	Cluster starting positions:
+49	134	102	127	18	
+
+Cluster starting positions:
 Cluster 0:
-49, 55, 121, 67, 14, 45, 123, 140, 171, 17, 32, 100, 134, 100, 18, 57, 110, 144, 65, 13, 38, 59, 146, 166, 15, 
+     49, 55, 121, 67, 14
+Cluster 1:
+     45, 123, 140, 171, 17
+Cluster 2:
+     32, 100, 134, 100, 18
+Cluster 3:
+     57, 110, 144, 65, 13
+Cluster 4:
+     38, 59, 146, 166, 15
+
 tsClusters cleaning up and closing out the log file.

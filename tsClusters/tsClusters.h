@@ -165,6 +165,9 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	stride = input_stride;
 
 #ifdef _DEBUG
+	log << std::endl << std::endl;
+	log << "Data points: ";
+
 	unsigned int count = 0;
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
@@ -250,29 +253,39 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	}
 
 #ifdef _DEBUG
+	log << std::endl << std::endl;
 	log << "Cluster starting positions:" << std::endl;
 
 	unsigned int it_c_cnt = 0;
-	log << "Cluster " << it_c_cnt << ":" << std::endl;
+	unsigned int cluster_index = 0;
+	log << "Cluster " << cluster_index << ":" << std::endl;
+	log << "     ";
 
 	std::vector<T>::iterator it_c = clusters->begin();
 	while (it_c != clusters->end())
 	{
-		log << *it_c << ", ";
+		log << *it_c;
 
 		it_c_cnt++;
 
-		if (!(it_c_cnt % stride) && it_c_cnt < stride)
+		if (!(it_c_cnt % stride) && it_c_cnt < clusters->size())
 		{
+			cluster_index++;
+
 			log << std::endl;
-			log << "Cluster " << it_c_cnt << ":" << std::endl;
+			log << "Cluster " << cluster_index << ":" << std::endl;
+			log << "     ";
 		}
+		else if (it_c_cnt < clusters->size())
+			log << ", ";
 
 		it_c++;
 	}
-#endif
 
-	// TODO: Compute minimum safe distance...
+	log << std::endl;
+#endif
+	
+	// TODO: Test for minimum safe distance...
 }
 
 #endif // _TS_CLUSTERS_H
