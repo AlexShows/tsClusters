@@ -9,6 +9,8 @@
 #ifndef _TS_CLUSTERS_H
 #define _TS_CLUSTERS_H
 
+#include <cmath>
+#include <limits>
 #include <thread>
 #include <mutex>
 #include <vector>
@@ -159,6 +161,7 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	}
 	
 	number_of_clusters = input_stride;
+	stride = input_stride;
 
 #ifdef _DEBUG
 	unsigned int count = 0;
@@ -196,19 +199,25 @@ TODO: Test this
 */
 template <typename T> void tsClusters<T>::initialize_clusters()
 {
+	if (!stride || !number_of_clusters)
+		return;
+
 	std::lock_guard<std::mutex> lock(tsLock);
 
 	// Find the upper and lower bound of each dimension in the data vector
 	T* ub = new T[stride];
 	T* lb = new T[stride];
 
-	memset(ub, 0, sizeof(T)*stride);
-	memset(lb, 0, sizeof(T)*stride);
+	for (unsigned int j = 0; j < stride; j++)
+	{
+		ub[j] = std::numeric_limits<T>::min();
+		lb[j] = std::numeric_limits<T>::max();
+	}
 
-	std::vector<T>::iterator it = clusters->begin();
+	std::vector<T>::iterator it = data->begin();
 
 	unsigned int counter = 0;
-	while (it != clusters->end())
+	while (it != data->end())
 	{
 		unsigned int i = counter % stride;
 
@@ -218,21 +227,9 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 		if (*it < lb[i])
 			lb[i] = *it;
 
+		it++;
 		counter++;
 	}
-
-	/*
-	for (unsigned int i = 0; i < clusters->size(); i++)
-	{
-		unsigned int index = i % stride;
-
-		if (clusters[i] > ub[index])
-			ub[index] = clusters[i];
-
-		if (clusters[i] < lb[index])
-			lb[index] = clusters[i];
-	}
-	*/
 
 	// We should now have a lower and upper bound for every dimension in
 	// the data, based on traversing all the data
@@ -245,7 +242,9 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 		{
 			// ...put a random value into the clusters vector that is between the
 			// lower bound and upper bound of this particular dimension
-			clusters->push_back((T)((rand() % (ub[idx_s] - lb[idx_s]) + lb[idx_s])));
+			// Using fmod from cmath as modulo is not defined for float
+			T val = (T)(std::fmod(rand(), (ub[idx_s] - lb[idx_s]))) + lb[idx_s];
+			clusters->push_back(val);
 		}
 	}
 
@@ -255,10 +254,10 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	unsigned int it_c_cnt = 0;
 	log << "Cluster " << it_c_cnt << ":" << std::endl;
 
-	std::vector<T>vc = clusters->get();
-	for (auto& it_c : vc)
+	std::vector<T>::iterator it_c = clusters->begin();
+	while (it_c != clusters->end())
 	{
-		log << it_c << ", ";
+		log << *it_c << ", ";
 
 		it_c_cnt++;
 
