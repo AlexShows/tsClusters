@@ -91,6 +91,7 @@ template <typename T> tsClusters<T>::tsClusters()
 	// By default we create this shared pointer, but we don't know the stride yet
 	// until the data is filled
 	data = std::make_shared<std::vector<T>>(*(new std::vector<T>));
+	clusters = std::make_shared<std::vector<T>>(*(new std::vector<T>));
 	stride = 0;
 	number_of_clusters = 0;
 	cpu_count = std::thread::hardware_concurrency(); // Logical processor count
@@ -266,6 +267,8 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 			log << std::endl;
 			log << "Cluster " << it_c_cnt << ":" << std::endl;
 		}
+
+		it_c++;
 	}
 #endif
 
