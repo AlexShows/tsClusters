@@ -160,8 +160,18 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 
 	try
 	{
-		for (unsigned int i = 0; i<input_size; i++)
+		// TODO: After every Nth input_data, add another min T value for the assigned cluster
+		//		 Need to keep up with this padded cluster assignment everywhere else
+		//		 that the data is traversed
+		for (unsigned int i = 0; i < input_size; i++)
+		{
 			data->push_back(input_data[i]);
+
+			// TODO: This seems correct, but single-step through this in debug to verify
+			if (i % input_stride == input_stride - 1)
+				data->push_back(std::numeric_limits<T>::min());
+		}
+			
 	}
 	catch (std::exception e)
 	{
@@ -181,10 +191,12 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	unsigned int count = 0;
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
-		if(!(count%input_stride))
+		if( !(count % input_stride) )
 			log << std::endl;
 
-		log << *it << "\t";
+		// Bug in this filter here
+		if ( (count % input_stride) != input_stride - 1)
+			log << *it << "\t";
 		count++;
 	}
 #endif
@@ -235,12 +247,16 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	{
 		unsigned int i = counter % stride;
 
-		if (*it > ub[i])
-			ub[i] = *it;
+		// TODO: Still has a bug in the filter here
+		if (i != stride - 1)
+		{
+			if (*it > ub[i])
+				ub[i] = *it;
 
-		if (*it < lb[i])
-			lb[i] = *it;
-
+			if (*it < lb[i])
+				lb[i] = *it;
+		}
+		
 		it++;
 		counter++;
 	}
