@@ -31,6 +31,15 @@ by the stride provided in order to run the cluster analysis.
 ********************/
 
 /*******************
+PRIORITY TODO
+=============
+I just realized the fatal flaw in this design. :-(
+This can't be a template T where T is in a vector, because there's not enough
+descriptive information about cluster assignment. I either need to build a vector
+of a custom data structure using T (probably the better path), or build and
+maintain a mapping between data and clusters. Every data point needs to have a
+cluster to which it is assigned.
+
 TODO List: 
 	-Add logging support [ IN PROGRESS ]
 	-Migrate to a better logger (need timestamps and such)
@@ -45,6 +54,7 @@ TODO List:
 	-Add distance computation (test for instruction support, use intrinsics)
 	-Try out sum of squares with/without the sqrt (dot product the array with itself)
 	-Performance, performance, performance
+
 ********************/
 
 /*******************
@@ -252,6 +262,8 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 		}
 	}
 
+	// TODO: Test for minimum safe distance...
+
 #ifdef _DEBUG
 	log << std::endl << std::endl;
 	log << "Cluster starting positions:" << std::endl;
@@ -284,8 +296,7 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 
 	log << std::endl;
 #endif
-	
-	// TODO: Test for minimum safe distance...
+
 }
 
 #endif // _TS_CLUSTERS_H
