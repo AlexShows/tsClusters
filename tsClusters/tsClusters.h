@@ -193,14 +193,17 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 		if( !(count % stride) )
 			log << std::endl;
 
-		if ((count % (stride + 1)) != stride)
+		if (count == 0)
+			log << *it << "\t";
+
+		if ((count % (stride + 1)) != 0)
 			log << *it << "\t";
 
 		count++;
 	}
 #endif
 
-	return data->size();
+	return (unsigned int)data->size();
 }
 
 /*
