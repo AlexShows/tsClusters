@@ -167,7 +167,6 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 		{
 			data->push_back(input_data[i]);
 
-			// TODO: This seems correct, but single-step through this in debug to verify
 			if (i % input_stride == input_stride - 1)
 				data->push_back(std::numeric_limits<T>::min());
 		}
@@ -191,12 +190,12 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	unsigned int count = 0;
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
-		if( !(count % input_stride) )
+		if( !(count % stride) )
 			log << std::endl;
 
-		// Bug in this filter here
-		if ( (count % input_stride) != input_stride - 1)
+		if ((count % (stride + 1)) != stride)
 			log << *it << "\t";
+
 		count++;
 	}
 #endif
