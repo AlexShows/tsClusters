@@ -250,10 +250,9 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	unsigned int counter = 0;
 	while (it != data->end())
 	{
-		unsigned int i = counter % stride;
-
-		// TODO: Still has a bug in the filter here
-		if (i != stride - 1)
+		unsigned int i = counter % (stride + 1);
+		
+		if (i <= (stride - 1))
 		{
 			if (*it > ub[i])
 				ub[i] = *it;

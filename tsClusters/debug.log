@@ -1005,14 +1005,14 @@ Data points:
 
 Cluster starting positions:
 Cluster 0:
-     106, 140, 24, 23, 3.40282e+038
+     49, 55, 121, 67, 14
 Cluster 1:
-     131, 103, 150, 128, 3.40282e+038
+     45, 123, 140, 171, 17
 Cluster 2:
-     118, 41, 61, 5, 3.40282e+038
+     32, 100, 134, 100, 18
 Cluster 3:
-     143, 69, 163, 10, 3.40282e+038
+     57, 110, 144, 65, 13
 Cluster 4:
-     37, 144, 52, 153, 3.40282e+038
+     38, 59, 146, 166, 15
 
 tsClusters cleaning up and closing out the log file.
