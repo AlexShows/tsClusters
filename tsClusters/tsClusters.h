@@ -188,17 +188,24 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	log << "Data points: ";
 
 	unsigned int count = 0;
+	unsigned int row = 0;
+
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
-		if( !(count % stride) )
+		if (!(count % stride))
+		{
 			log << std::endl;
+			row++;
+		}
+			
+		if (count % (stride + 1) != stride + row)
+		{
+			if (count == 0)
+				log << *it << "\t";
 
-		if (count == 0)
-			log << *it << "\t";
-
-		if ((count % (stride + 1)) != 0)
-			log << *it << "\t";
-
+			if ((count % (stride + 1)) != row)
+				log << *it << "\t";
+		}
 		count++;
 	}
 #endif
