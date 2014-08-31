@@ -78,9 +78,14 @@ private:
 	/* Like the data vector, the clusters have a stride to them, to 
 	retain the flatness of the vector layout */
 	std::shared_ptr<std::vector<T>> clusters;
+	/* Experimenting with a two-dimensional version to sort the 
+	data into columns and rows */
+	std::shared_ptr<std::vector<std::vector<T>>> experimental;
+	//std::shared_ptr<std::vector<std::vector<std::pair<T, unsigned int>>>> experimental;
 
 	/* Stride is number of number of dimensions to the data */
 	unsigned int stride;
+	unsigned int stride_with_padding;
 	unsigned int number_of_clusters;
 	/*******************
 	A lock for any thread that may need to write to the data,
@@ -102,6 +107,10 @@ template <typename T> tsClusters<T>::tsClusters()
 	// until the data is filled
 	data = std::make_shared<std::vector<T>>(*(new std::vector<T>));
 	clusters = std::make_shared<std::vector<T>>(*(new std::vector<T>));
+	
+	experimental = std::make_shared<std::vector<std::vector<T>>>(*(new std::vector<std::vector<T>>));
+	//experimental = std::make_shared<std::vector<T>>(*(new std::vector<std::vector<std::pair<T, unsigned int>>>));
+
 	stride = 0;
 	number_of_clusters = 0;
 	cpu_count = std::thread::hardware_concurrency(); // Logical processor count
@@ -158,11 +167,23 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 
 	std::lock_guard<std::mutex> lock(tsLock);
 
+	// TODO: Continue working on this experiment
+	for (unsigned int i = 0; i < input_size; i++)
+	{
+		std::vector<T> row;
+		while ((i % (input_stride+1)) < input_stride)
+		{
+			row.push_back(input_data[i]);
+			i++;
+		}			
+		
+		// Push back into the vector of experimental until we reach the stride
+		row.push_back(std::numeric_limits<T>::min());
+		experimental->push_back(row);
+	}
+
 	try
 	{
-		// TODO: After every Nth input_data, add another min T value for the assigned cluster
-		//		 Need to keep up with this padded cluster assignment everywhere else
-		//		 that the data is traversed
 		for (unsigned int i = 0; i < input_size; i++)
 		{
 			data->push_back(input_data[i]);
@@ -182,6 +203,8 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	
 	number_of_clusters = input_stride;
 	stride = input_stride;
+	// Accomodate another value added for the cluster assignment
+	stride_with_padding = input_stride + 1; 
 
 #ifdef _DEBUG
 	log << std::endl << std::endl;
@@ -192,13 +215,13 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
-		if (!(count % (stride + 1))) // +1 for the padding
+		if (!(count % stride_with_padding))
 		{
 			log << std::endl;
 			row++;
 		}
 			
-		if (count % (stride + 1) <= stride - 1) 
+		if (count % stride_with_padding <= stride - 1)
 		{
 			log << *it << "\t";
 		}
@@ -250,7 +273,7 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	unsigned int counter = 0;
 	while (it != data->end())
 	{
-		unsigned int i = counter % (stride + 1);
+		unsigned int i = counter % stride_with_padding;
 		
 		if (i <= (stride - 1))
 		{
