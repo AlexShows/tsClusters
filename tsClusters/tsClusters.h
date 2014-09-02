@@ -72,32 +72,41 @@ public:
 	void set_number_of_clusters(unsigned int num_clusters);
 	void tsClusters<T>::initialize_clusters();
 private:
+	/* This is the internal data structure for storing each data point
+	of N dimensions, where each data point has a cluster index to which
+	it is assigned.	*/
 	struct data_structure
 	{
-		std::vector<T> data_point;
-		unsigned int cluster_index;
+		std::vector<T> p; // The N-dimensional point
+		unsigned int ci; // The cluster index
 	};
-	/* We need a shared_ptr here so we can traverse the data across
-	multiple threads */
-	std::shared_ptr<std::vector<T>> data;
-	/* Like the data vector, the clusters have a stride to them, to 
-	retain the flatness of the vector layout */
-	std::shared_ptr<std::vector<T>> clusters;
-	/* Experimenting with a two-dimensional version to sort the 
-	data into columns and rows */
-	std::shared_ptr<std::vector<std::vector<T>>> experimental;
-	std::shared_ptr<std::vector<data_structure>> foo;
+
+	/* A shared pointer to the data vector itself, of which there
+	may be any number of points, each with its own assigned cluster */
+	std::shared_ptr<std::vector<data_structure>> data;
+
+	/* The clusters are referenced by index, so we just need a shared
+	pointer to the vector of vectors (2 dimensional layout), thus
+	clusters[0] is the first index, clusters[1] is the second, and so on */
+	std::shared_ptr<std::vector<std::vector<T>>> clusters;
 	
 	/* Stride is number of number of dimensions to the data */
 	unsigned int stride;
-	unsigned int stride_with_padding;
+
+	/* This is not redundant, because changing this and then 
+	initializing clusters will change the cluster data structure.
+	Therefore, be careful not to change the cluster size _without_
+	initializing clusters afterward. */
 	unsigned int number_of_clusters;
+
 	/*******************
 	A lock for any thread that may need to write to the data,
 	though this should only ever need to be the thread owning the
 	object created with this template, it's here just in case
 	********************/
 	std::mutex tsLock;
+
+	/* The log file */
 	std::fstream log;
 
 	unsigned int cpu_count = 0;
@@ -110,11 +119,8 @@ template <typename T> tsClusters<T>::tsClusters()
 {
 	// By default we create this shared pointer, but we don't know the stride yet
 	// until the data is filled
-	data = std::make_shared<std::vector<T>>(*(new std::vector<T>));
-	clusters = std::make_shared<std::vector<T>>(*(new std::vector<T>));
-	
-	experimental = std::make_shared<std::vector<std::vector<T>>>(*(new std::vector<std::vector<T>>));
-	foo = std::make_shared<std::vector < data_structure >>(*(new std::vector< data_structure>));
+	data = std::make_shared<std::vector < data_structure >>(*(new std::vector< data_structure>));
+	clusters = std::make_shared<std::vector<std::vector<T>>>(*(new std::vector<std::vector<T>>));
 
 	stride = 0;
 	number_of_clusters = 0;
@@ -154,7 +160,8 @@ template <typename T> tsClusters<T>& tsClusters<T>::operator=(const tsClusters<T
 	log << "tsClusters assignment operator called.";
 #endif
 
-	data.reset(new std::vector<T>);
+	data.reset(new std::vector< data_structure>);
+	clusters.reset(new std::vector<std::vector<T>>);
 	tsLock = other.tsLock;
 	return *this;
 }
@@ -172,46 +179,20 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 
 	std::lock_guard<std::mutex> lock(tsLock);
 
-	// TODO: Continue working on this experiment
-	for (unsigned int i = 0; i < input_size; i++)
-	{
-		std::vector<T> row;
-		while ((i % (input_stride+1)) < input_stride)
-		{
-			row.push_back(input_data[i]);
-			i++;
-		}			
-		
-		// Push back into the vector of experimental until we reach the stride
-		row.push_back(std::numeric_limits<T>::min());
-		experimental->push_back(row);
-	}
-
-	// Another experiment with a different data structure
-	for (unsigned int i = 0; i < input_size; i++)
-	{
-		data_structure ds;
-		while ((i % (input_stride + 1)) < input_stride)
-		{
-			ds.data_point.push_back(input_data[i]);
-			i++;
-		}
-
-		// Push back into the vector of experimental until we reach the stride
-		ds.cluster_index = 0;
-		foo->push_back(ds);
-	}
-
 	try
 	{
 		for (unsigned int i = 0; i < input_size; i++)
 		{
-			data->push_back(input_data[i]);
+			data_structure ds;
+			while ((i % (input_stride + 1)) < input_stride)
+			{
+				ds.p.push_back(input_data[i]);
+				i++;
+			}
 
-			if (i % input_stride == input_stride - 1)
-				data->push_back(std::numeric_limits<T>::min());
+			ds.ci = 0;
+			data->push_back(ds);
 		}
-			
 	}
 	catch (std::exception e)
 	{
@@ -223,8 +204,6 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	
 	number_of_clusters = input_stride;
 	stride = input_stride;
-	// Accomodate another value added for the cluster assignment
-	stride_with_padding = input_stride + 1; 
 
 #ifdef _DEBUG
 	log << std::endl << std::endl;
@@ -235,21 +214,14 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
-		if (!(count % stride_with_padding))
-		{
-			log << std::endl;
-			row++;
-		}
-			
-		if (count % stride_with_padding <= stride - 1)
-		{
-			log << *it << "\t";
-		}
-		count++;
+		for (auto it_p = it->p.begin(); it_p != it->p.end(); it_p++)
+			log << *it_p << "\t";
+
+		log << std::endl;
 	}
 #endif
 
-	return (unsigned int)data->size();
+	return (unsigned int)(data->size() * data->begin()->p.size());
 }
 
 /*
@@ -288,24 +260,24 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 		lb[j] = std::numeric_limits<T>::max();
 	}
 
-	std::vector<T>::iterator it = data->begin();
+	std::vector<data_structure>::iterator it = data->begin();
 
-	unsigned int counter = 0;
 	while (it != data->end())
 	{
-		unsigned int i = counter % stride_with_padding;
-		
-		if (i <= (stride - 1))
+		std::vector<T>::iterator it_t = it->p.begin();
+		unsigned int i = 0;
+		while (it_t != it->p.begin())
 		{
-			if (*it > ub[i])
-				ub[i] = *it;
+			if (*it_t > ub[i])
+				ub[i] = *it_t;
+			if (*it_t < lb[i])
+				lb[i] = *it_t;
 
-			if (*it < lb[i])
-				lb[i] = *it;
+			i++;
+			it_t++;
 		}
-		
+
 		it++;
-		counter++;
 	}
 
 	// We should now have a lower and upper bound for every dimension in
@@ -314,15 +286,20 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	// For every cluster...
 	for (unsigned int idx_c = 0; idx_c < number_of_clusters; idx_c++)
 	{
-		// ... and every dimension of every cluster...
+		// Create a new cluster point...
+		std::vector<T> cp;
+
+		// ... and for every dimension of input (stride)...
 		for (unsigned int idx_s = 0; idx_s < stride; idx_s++)
 		{
 			// ...put a random value into the clusters vector that is between the
 			// lower bound and upper bound of this particular dimension
 			// Using fmod from cmath as modulo is not defined for float
-			T val = (T)(std::fmod(rand(), (ub[idx_s] - lb[idx_s]))) + lb[idx_s];
-			clusters->push_back(val);
+			cp.push_back((T)(std::fmod(rand(), (ub[idx_s] - lb[idx_s]))) + lb[idx_s]);
+
 		}
+		// Then add this point and move on to the next cluster...
+		clusters->push_back(cp);
 	}
 
 	// TODO: Test for minimum safe distance...
@@ -331,29 +308,27 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	log << std::endl << std::endl;
 	log << "Cluster starting positions:" << std::endl;
 
-	unsigned int it_c_cnt = 0;
 	unsigned int cluster_index = 0;
-	log << "Cluster " << cluster_index << ":" << std::endl;
-	log << "     ";
 
-	std::vector<T>::iterator it_c = clusters->begin();
+	// The clusters
+	std::vector<std::vector<T>>::iterator it_c = clusters->begin();
+
 	while (it_c != clusters->end())
 	{
-		log << *it_c;
+		log << std::endl;
+		log << "Cluster " << cluster_index << ":" << std::endl;
+		log << "     ";
 
-		it_c_cnt++;
+		// The cluster points
+		std::vector<T>::iterator it_cp = it_c->begin();
 
-		if (!(it_c_cnt % stride) && it_c_cnt < clusters->size())
+		while (it_cp != it_c->end())
 		{
-			cluster_index++;
-
-			log << std::endl;
-			log << "Cluster " << cluster_index << ":" << std::endl;
-			log << "     ";
+			log << *it_cp << ", ";
+			it_cp++;
 		}
-		else if (it_c_cnt < clusters->size())
-			log << ", ";
 
+		cluster_index++;
 		it_c++;
 	}
 
