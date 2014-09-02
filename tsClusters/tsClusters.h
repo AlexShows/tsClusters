@@ -72,6 +72,11 @@ public:
 	void set_number_of_clusters(unsigned int num_clusters);
 	void tsClusters<T>::initialize_clusters();
 private:
+	struct data_structure
+	{
+		std::vector<T> data_point;
+		unsigned int cluster_index;
+	};
 	/* We need a shared_ptr here so we can traverse the data across
 	multiple threads */
 	std::shared_ptr<std::vector<T>> data;
@@ -81,8 +86,8 @@ private:
 	/* Experimenting with a two-dimensional version to sort the 
 	data into columns and rows */
 	std::shared_ptr<std::vector<std::vector<T>>> experimental;
-	//std::shared_ptr<std::vector<std::vector<std::pair<T, unsigned int>>>> experimental;
-
+	std::shared_ptr<std::vector<data_structure>> foo;
+	
 	/* Stride is number of number of dimensions to the data */
 	unsigned int stride;
 	unsigned int stride_with_padding;
@@ -109,7 +114,7 @@ template <typename T> tsClusters<T>::tsClusters()
 	clusters = std::make_shared<std::vector<T>>(*(new std::vector<T>));
 	
 	experimental = std::make_shared<std::vector<std::vector<T>>>(*(new std::vector<std::vector<T>>));
-	//experimental = std::make_shared<std::vector<T>>(*(new std::vector<std::vector<std::pair<T, unsigned int>>>));
+	foo = std::make_shared<std::vector < data_structure >>(*(new std::vector< data_structure>));
 
 	stride = 0;
 	number_of_clusters = 0;
@@ -180,6 +185,21 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 		// Push back into the vector of experimental until we reach the stride
 		row.push_back(std::numeric_limits<T>::min());
 		experimental->push_back(row);
+	}
+
+	// Another experiment with a different data structure
+	for (unsigned int i = 0; i < input_size; i++)
+	{
+		data_structure ds;
+		while ((i % (input_stride + 1)) < input_stride)
+		{
+			ds.data_point.push_back(input_data[i]);
+			i++;
+		}
+
+		// Push back into the vector of experimental until we reach the stride
+		ds.cluster_index = 0;
+		foo->push_back(ds);
 	}
 
 	try
