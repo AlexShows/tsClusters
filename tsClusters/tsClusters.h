@@ -5,7 +5,7 @@
 //
 // Definition of the tsClusters template class 
 // Given a data set of N-dimensional values, find
-// some X number of clusters
+// some M number of clusters
 #ifndef _TS_CLUSTERS_H
 #define _TS_CLUSTERS_H
 
@@ -19,42 +19,34 @@
 
 /*******************
 The idea here is to have a template class for N-dimensional arrays that
-can be searched for X clusters.
+can be searched for M clusters.
 
-Internally, while it would be nice to store the data as a vector of 
-vectors of vectors...ad infinitum...this is intractible and would look
-silly even with typedefs.
+Internally, each data point is comprised of some number of T values. 
+Those T values are stored in a vector, which is inside a struct that pairs
+the vector of T's with a cluster index to which the data point is currently
+assigned.
 
-Instead, I'm trying a single vector with a stride component so that
-any number of T-type values can be copied into the class and traversed
-by the stride provided in order to run the cluster analysis. 
+Then all of these structs of vectors of T's are placed in a vector that 
+is the entire dataset. Thus you can traverse the full data set, find a 
+data point and look at its T values and cluster assigned. 
 ********************/
 
 /*******************
-PRIORITY TODO
-=============
-I just realized the fatal flaw in this design. :-(
-This can't be a template T where T is in a vector, because there's not enough
-descriptive information about cluster assignment. I either need to build a vector
-of a custom data structure using T (probably the better path), or build and
-maintain a mapping between data and clusters. Every data point needs to have a
-cluster to which it is assigned.
-
 TODO List: 
 	-Add logging support [ IN PROGRESS ]
 	-Migrate to a better logger (need timestamps and such)
 	-Test data filling functions, bounds check, error handling
+	-Add logical processor counting [ DONE ]
 	-Add cluster centers data [ DONE ]
-	-Add cluster starting position assignments [ IN PROGRESS ]
+	-Add cluster starting position assignments [ DONE ]
+	-Add minimum safe distance checks on cluster starting positions 
 	-Add cluster assignment
 	-Add centroid computation
-	-Add logical processor counting [ DONE ] 
 	-Add multi-threading and experiment with workload distribution 
 			(probably divide the entire dataset by thread along stride boundaries?)
 	-Add distance computation (test for instruction support, use intrinsics)
 	-Try out sum of squares with/without the sqrt (dot product the array with itself)
 	-Performance, performance, performance
-
 ********************/
 
 /*******************
@@ -71,6 +63,7 @@ public:
 	unsigned int fill_data_array(T* input, unsigned int size,  unsigned int stride);
 	void set_number_of_clusters(unsigned int num_clusters);
 	void tsClusters<T>::initialize_clusters();
+	void tsClusters<T>::assign_clusters(); // For each data point, assign the closest cluster to it
 private:
 	/* This is the internal data structure for storing each data point
 	of N dimensions, where each data point has a cluster index to which
@@ -212,9 +205,6 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 	log << std::endl << std::endl;
 	log << "Data points: " << std::endl;
 
-	unsigned int count = 0;
-	unsigned int row = 0;
-
 	for(auto it=data->begin(); it!=data->end(); it++)
 	{
 		for (auto it_p = it->p.begin(); it_p != it->p.end(); it_p++)
@@ -244,7 +234,7 @@ template <typename T> void tsClusters<T>::set_number_of_clusters(unsigned int in
 /*
 Initalize the clusters to a new starting position, based on the min and max
 of each dimension (of which there are N dimensions, where N is the stride)
-TODO: Test this
+TODO: Test this more thorougly
 */
 template <typename T> void tsClusters<T>::initialize_clusters()
 {
@@ -269,7 +259,7 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 	{
 		std::vector<T>::iterator it_t = it->p.begin();
 		unsigned int i = 0;
-		while (it_t != it->p.begin())
+		while (it_t != it->p.end())
 		{
 			if (*it_t > ub[i])
 				ub[i] = *it_t;
@@ -327,7 +317,7 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 
 		while (it_cp != it_c->end())
 		{
-			log << *it_cp << ", ";
+			log << *it_cp << " ";
 			it_cp++;
 		}
 
@@ -337,7 +327,65 @@ template <typename T> void tsClusters<T>::initialize_clusters()
 
 	log << std::endl;
 #endif
-
+	
 }
 
+/*
+For every data point, find the closest cluster to it, and assign that one to it.
+*/
+template <typename T> void tsClusters<T>::assign_clusters()
+{
+	T computed_distance = 0; // Accumulator for the (p1-q1)^2 part of the distance computation
+	
+	unsigned int current_cluster_index = 0; // For keeping track of which cluster we're checking
+	unsigned int closest_cluster_index = 0; // For keeping track of which was the closest cluster so far
+	T closest_cluster_distance = std::numeric_limits<T>::max();
+
+	// For every data point in the data vector...
+	for (auto dp_it = data->begin(); dp_it != data->end(); dp_it++)
+	{
+		current_cluster_index = 0;
+
+		// ...compare to every cluster point...
+		for (auto cp_it = clusters->begin(); cp_it != clusters->end(); cp_it++)
+		{
+			computed_distance = 0;
+
+			/*****************
+			Basically we're doing an N-dimensional distance comparison, to find
+			the index of the cluster that is the closest to the data point.
+			Using a distance formula like this:
+			distance(p,q) = sqrt((p1-q1)^2 + (p2-q2)^2 + ... + (pN-qN)^2)
+			Except we don't need to bother with the expensive sqrt operation.
+			So in this inner loop we're just accumulating the various (p1-q1)^2
+			result for each cluster and data point T value.
+			NOTE: The count of it_p's should match the count of it_cp's because
+			of internal consistency checks for stride.
+			******************/
+
+			// FIX THIS
+			// Need to use a distance compute function that accepts
+			// two std::vector<T>s and computes the distance using the lowest
+			// size of the two, and that's where all the (p1-q1)^2 etc. occurs
+			// So it returns a distance, and then here we'll compare the distance
+			// to the lowest previously found, and if it's lower, use this cluster
+			// index, otherwise try the next one
+			computed_distance = 0;// (*cTval_it - *Tval_it) * (*cTval_it - *Tval_it); // WRONG - no good
+			
+			if (computed_distance < closest_cluster_distance)
+			{
+				closest_cluster_distance = computed_distance;
+				closest_cluster_index = current_cluster_index;
+			}
+
+			current_cluster_index++;
+
+		} // end for every cluster
+
+		// Now assign the cluster index to this data point
+		dp_it->ci = closest_cluster_index;
+		// TODO: Consider adding the computed distance to the data structure
+		
+	} // end for every data point
+}
 #endif // _TS_CLUSTERS_H

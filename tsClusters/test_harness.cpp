@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
 
 	unsigned int num_data_points = clusters.fill_data_array(data_array, TS_DIMENSIONS * TS_DATAPOINTS, TS_DIMENSIONS);
 	clusters.initialize_clusters();
+	clusters.assign_clusters();
 
 	return 0;
 }
