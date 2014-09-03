@@ -62,8 +62,8 @@ public:
 	// TODO: What about a move operator?
 	unsigned int fill_data_array(T* input, unsigned int size,  unsigned int stride);
 	void set_number_of_clusters(unsigned int num_clusters);
-	void tsClusters<T>::initialize_clusters();
-	void tsClusters<T>::assign_clusters(); // For each data point, assign the closest cluster to it
+	void initialize_clusters();
+	void assign_clusters(); // For each data point, assign the closest cluster to it
 private:
 	/* This is the internal data structure for storing each data point
 	of N dimensions, where each data point has a cluster index to which
@@ -72,6 +72,7 @@ private:
 	{
 		std::vector<T> p; // The N-dimensional point
 		unsigned int ci; // The cluster index
+		T distance_squared; // Distance to the nearest cluster
 	};
 
 	/* A shared pointer to the data vector itself, of which there
@@ -103,6 +104,8 @@ private:
 	std::fstream log;
 
 	unsigned int cpu_count = 0;
+
+	T compute_squared_distance(std::vector<T>& pointA, std::vector<T>& pointB);
 };
 
 /*
@@ -189,6 +192,7 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 			}
 
 			ds.ci = 0;
+			ds.distance_squared = std::numeric_limits<T>::max();
 			data->push_back(ds);
 		}
 	}
@@ -345,6 +349,7 @@ template <typename T> void tsClusters<T>::assign_clusters()
 	for (auto dp_it = data->begin(); dp_it != data->end(); dp_it++)
 	{
 		current_cluster_index = 0;
+		closest_cluster_distance = std::numeric_limits<T>::max();;
 
 		// ...compare to every cluster point...
 		for (auto cp_it = clusters->begin(); cp_it != clusters->end(); cp_it++)
@@ -362,16 +367,8 @@ template <typename T> void tsClusters<T>::assign_clusters()
 			NOTE: The count of it_p's should match the count of it_cp's because
 			of internal consistency checks for stride.
 			******************/
+			computed_distance = compute_squared_distance(dp_it->p, *cp_it);
 
-			// FIX THIS
-			// Need to use a distance compute function that accepts
-			// two std::vector<T>s and computes the distance using the lowest
-			// size of the two, and that's where all the (p1-q1)^2 etc. occurs
-			// So it returns a distance, and then here we'll compare the distance
-			// to the lowest previously found, and if it's lower, use this cluster
-			// index, otherwise try the next one
-			computed_distance = 0;// (*cTval_it - *Tval_it) * (*cTval_it - *Tval_it); // WRONG - no good
-			
 			if (computed_distance < closest_cluster_distance)
 			{
 				closest_cluster_distance = computed_distance;
@@ -384,8 +381,33 @@ template <typename T> void tsClusters<T>::assign_clusters()
 
 		// Now assign the cluster index to this data point
 		dp_it->ci = closest_cluster_index;
-		// TODO: Consider adding the computed distance to the data structure
+		dp_it->distance_squared = closest_cluster_distance;
 		
 	} // end for every data point
 }
+
+/* Compute the squared distance, ignoring the expensive sqrt operation. 
+Useful for comparing without worrying about the _actual_ distance of the two points.
+If you want the _actual_ distance, just sqrt the return value of this. */
+template <typename T> T tsClusters<T>::compute_squared_distance(std::vector<T>& pointA, std::vector<T>& pointB)
+{
+	// Which one is smaller?
+	unsigned int size = pointA.size();
+	if (pointB.size() < size)
+		size = pointB.size();
+
+	T accum = 0;
+	std::vector<T>::iterator it_a = pointA.begin();
+	std::vector<T>::iterator it_b = pointB.begin();
+
+	while (it_a != pointA.end() && it_b != pointB.end())
+	{
+		accum += (*it_a - *it_b) * (*it_a - *it_b);
+		it_a++;
+		it_b++;
+	}
+
+	return accum;
+}
+
 #endif // _TS_CLUSTERS_H

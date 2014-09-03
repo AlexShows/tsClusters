@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	// TODO: Built more robust tests of these functions
 	unsigned int num_data_points = clusters.fill_data_array(data_array, TS_DIMENSIONS * TS_DATAPOINTS, TS_DIMENSIONS);
 	clusters.initialize_clusters();
 	clusters.assign_clusters();
