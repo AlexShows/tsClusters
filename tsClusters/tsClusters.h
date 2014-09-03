@@ -176,6 +176,9 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 {
 	if(!input_data || !input_size || !input_stride)
 		return 0;
+	
+	number_of_clusters = input_stride; // To begin, we assume this, but the user can change it
+	stride = input_stride; // This should be internally consistent everywhere
 
 	std::lock_guard<std::mutex> lock(tsLock);
 
@@ -184,10 +187,12 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 		for (unsigned int i = 0; i < input_size; i++)
 		{
 			data_structure ds;
-			while ((i % (input_stride + 1)) < input_stride)
-			{
-				ds.p.push_back(input_data[i]);
+			ds.p.push_back(input_data[i]);
+			// Fill this row to the stride
+			while (ds.p.size() < stride)
+			{				
 				i++;
+				ds.p.push_back(input_data[i]);
 			}
 
 			ds.ci = 0;
@@ -201,9 +206,7 @@ template <typename T> unsigned int tsClusters<T>::fill_data_array(T* input_data,
 #endif
 		return 0;
 	}
-	
-	number_of_clusters = input_stride;
-	stride = input_stride;
+
 
 #ifdef _DEBUG
 	log << std::endl << std::endl;
