@@ -391,11 +391,6 @@ Useful for comparing without worrying about the _actual_ distance of the two poi
 If you want the _actual_ distance, just sqrt the return value of this. */
 template <typename T> T tsClusters<T>::compute_squared_distance(std::vector<T>& pointA, std::vector<T>& pointB)
 {
-	// Which one is smaller?
-	unsigned int size = pointA.size();
-	if (pointB.size() < size)
-		size = pointB.size();
-
 	T accum = 0;
 	std::vector<T>::iterator it_a = pointA.begin();
 	std::vector<T>::iterator it_b = pointB.begin();
