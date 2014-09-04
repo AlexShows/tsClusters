@@ -40,8 +40,8 @@ TODO List:
 	-Add cluster centers data [ DONE ]
 	-Add cluster starting position assignments [ DONE ]
 	-Add minimum safe distance checks on cluster starting positions 
-	-Add cluster assignment
-	-Add centroid computation
+	-Add cluster assignment [ DONE ]
+	-Add centroid computation [ IN PROGRESS ]
 	-Add multi-threading and experiment with workload distribution 
 			(probably divide the entire dataset by thread along stride boundaries?)
 	-Add distance computation (test for instruction support, use intrinsics)
@@ -64,6 +64,9 @@ public:
 	void set_number_of_clusters(unsigned int num_clusters);
 	void initialize_clusters();
 	void assign_clusters(); // For each data point, assign the closest cluster to it
+	// For each cluster, recompute the position 
+	// as the centroid of all associated data points
+	void compute_centroids(); 
 private:
 	/* This is the internal data structure for storing each data point
 	of N dimensions, where each data point has a cluster index to which
@@ -384,6 +387,72 @@ template <typename T> void tsClusters<T>::assign_clusters()
 		dp_it->distance_squared = closest_cluster_distance;
 		
 	} // end for every data point
+}
+
+/* 
+Given a set of data points with clusters assigned, compute new cluster
+positions as the centroid of all the points assigned to that cluster.
+If a cluster has no points assigned, it needs to be moved to a new 
+random location. 
+*/
+template <typename T> void tsClusters<T>::compute_centroids()
+{
+	if (!stride || !number_of_clusters)
+		return;
+		
+	// Outside loop is each cluster by index
+	for (unsigned int i = 0; i < number_of_clusters; i++)
+	{		
+		T* accum = new T[stride]; // accumulator for each data point
+		memset(accum, 0, sizeof(T) * stride);
+
+		unsigned int data_point_counter = 0;
+
+		std::vector<data_structure>::iterator ds_iter = data->begin();
+		while (ds_iter != data->end())
+		{
+			if (ds_iter->ci == i)
+			{
+				data_point_counter++; // Used later to compute the mean
+
+				unsigned int Tcounter = 0;
+				for (auto& iter : ds_iter->p)
+				{
+					accum[Tcounter] += iter;
+					Tcounter++;
+				}				
+			}
+			ds_iter++;
+		} // End for each data point by iterator
+
+		// Now update the ith cluster position as the mean
+		// of the accumulator for each T value
+		unsigned int j = 0;
+		auto cp_iter = clusters->begin();
+		// Move out to the iterator of the current index in the outside loop
+		while (j != i && cp_iter != clusters->end())
+		{
+			j++;
+			cp_iter++;
+		}
+		
+		std::vector<T>::iterator Tval_iter = cp_iter->begin();
+		while (Tval_iter != cp_iter->end())
+		{
+			// TODO: Fix the bug here in assignment
+			// ...the right hand operand is fine - and the left-hand
+			// appears to be the std::vector<T>iterator as expected, 
+			// but copying the data over like this fails and writes a
+			// bad value (like its copying into the pointer?)
+			*Tval_iter = accum[stride] / data_point_counter;
+			Tval_iter++;
+		}
+			
+
+		delete accum;
+
+	} // End for each cluster by index
+	
 }
 
 /* Compute the squared distance, ignoring the expensive sqrt operation. 
