@@ -436,18 +436,16 @@ template <typename T> void tsClusters<T>::compute_centroids()
 			cp_iter++;
 		}
 		
+		// Compute the mean of each accumulator and store it as the new
+		// set of T values in the cluster
+		j = 0;
 		std::vector<T>::iterator Tval_iter = cp_iter->begin();
 		while (Tval_iter != cp_iter->end())
 		{
-			// TODO: Fix the bug here in assignment
-			// ...the right hand operand is fine - and the left-hand
-			// appears to be the std::vector<T>iterator as expected, 
-			// but copying the data over like this fails and writes a
-			// bad value (like its copying into the pointer?)
-			*Tval_iter = accum[stride] / data_point_counter;
+			*Tval_iter = accum[j] / data_point_counter;
+			j++;
 			Tval_iter++;
-		}
-			
+		}			
 
 		delete accum;
 
