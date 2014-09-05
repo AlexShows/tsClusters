@@ -41,12 +41,9 @@ TODO List:
 	-Add cluster starting position assignments [ DONE ]
 	-Add minimum safe distance checks on cluster starting positions 
 	-Add cluster assignment [ DONE ]
-	-Add centroid computation [ IN PROGRESS ]
+	-Add centroid computation [ DONE ]
+	-Add checks for movement, whether a data point changed clusters
 	-Add multi-threading and experiment with workload distribution 
-			(probably divide the entire dataset by thread along stride boundaries?)
-	-Add distance computation (test for instruction support, use intrinsics)
-	-Try out sum of squares with/without the sqrt (dot product the array with itself)
-	-Performance, performance, performance
 ********************/
 
 /*******************
@@ -67,6 +64,8 @@ public:
 	// For each cluster, recompute the position 
 	// as the centroid of all associated data points
 	void compute_centroids(); 
+	// Return the number of data points that moved in the last round
+	unsigned int get_num_data_points_moved(){ return data_points_moved; };
 private:
 	/* This is the internal data structure for storing each data point
 	of N dimensions, where each data point has a cluster index to which
@@ -107,6 +106,9 @@ private:
 	std::fstream log;
 
 	unsigned int cpu_count = 0;
+
+	/* Has a data point moved from one cluster assignment to another? */
+	unsigned int data_points_moved = std::numeric_limits<unsigned int>::max();
 
 	T compute_squared_distance(std::vector<T>& pointA, std::vector<T>& pointB);
 };
@@ -342,6 +344,8 @@ For every data point, find the closest cluster to it, and assign that one to it.
 */
 template <typename T> void tsClusters<T>::assign_clusters()
 {
+	data_points_moved = 0;
+
 	T computed_distance = 0; // Accumulator for the (p1-q1)^2 part of the distance computation
 	
 	unsigned int current_cluster_index = 0; // For keeping track of which cluster we're checking
@@ -382,7 +386,12 @@ template <typename T> void tsClusters<T>::assign_clusters()
 
 		} // end for every cluster
 
-		// Now assign the cluster index to this data point
+		// Test and set the movement flag if the cluster changed this round
+		// (this is tested and skipped if it's already true)
+		if (dp_it->ci != closest_cluster_index)
+			data_points_moved++;
+
+		// Assign the cluster index to this data point
 		dp_it->ci = closest_cluster_index;
 		dp_it->distance_squared = closest_cluster_distance;
 		
